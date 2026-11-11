@@ -41,6 +41,26 @@ yet. To run the tests:
 python -m unittest discover -s tests
 ```
 
+## Run with Docker
+
+Requires Docker with the Compose plugin.
+
+```powershell
+$env:SECRET_KEY = python -c "import secrets; print(secrets.token_hex(32))"
+docker compose up --build -d
+```
+
+Open <http://localhost:5000>. Compose initializes the database on startup and
+stores it in the persistent `game-data` volume. The app runs as a non-root user
+with Waitress. To stop the app while preserving its database:
+
+```powershell
+docker compose down
+```
+
+Keep the same `SECRET_KEY` value when restarting the app. Do not use the
+development fallback secret for a deployed environment.
+
 The app factory and database extension live in `app/__init__.py`; starter data
 models are in `app/models.py`. `init-db` creates the tables and can be run again
 if needed. It does not erase existing data. The default secret key is for local
