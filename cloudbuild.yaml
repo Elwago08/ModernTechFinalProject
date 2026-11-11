@@ -20,6 +20,7 @@ steps:
       - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
 
   - name: gcr.io/google.com/cloudsdktool/google-cloud-cli:stable
+    entrypoint: gcloud
     args:
       - run
       - jobs
@@ -35,6 +36,7 @@ steps:
       - --task-timeout=5m
 
   - name: gcr.io/google.com/cloudsdktool/google-cloud-cli:stable
+    entrypoint: gcloud
     args:
       - run
       - jobs
@@ -44,6 +46,7 @@ steps:
       - --wait
 
   - name: gcr.io/google.com/cloudsdktool/google-cloud-cli:stable
+    entrypoint: gcloud
     args:
       - run
       - deploy
