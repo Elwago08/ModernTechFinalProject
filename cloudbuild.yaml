@@ -1,0 +1,60 @@
+substitutions:
+  _REGION: us-central1
+  _REPOSITORY: game-ratings
+  _SERVICE: game-ratings
+  _INSTANCE_CONNECTION_NAME: REPLACE_WITH_PROJECT_ID:REGION:INSTANCE_NAME
+  _DATABASE_URL_SECRET: game-ratings-database-url
+  _SECRET_KEY_SECRET: game-ratings-secret-key
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+
+  - name: gcr.io/google.com/cloudsdktool/google-cloud-cli:stable
+    args:
+      - run
+      - jobs
+      - deploy
+      - ${_SERVICE}-init
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+      - --region=${_REGION}
+      - --set-cloudsql-instances=${_INSTANCE_CONNECTION_NAME}
+      - --set-secrets=DATABASE_URL=${_DATABASE_URL_SECRET}:latest,SECRET_KEY=${_SECRET_KEY_SECRET}:latest
+      - --command=python
+      - --args=-m,flask,--app,run.py,init-db
+      - --max-retries=0
+      - --task-timeout=5m
+
+  - name: gcr.io/google.com/cloudsdktool/google-cloud-cli:stable
+    args:
+      - run
+      - jobs
+      - execute
+      - ${_SERVICE}-init
+      - --region=${_REGION}
+      - --wait
+
+  - name: gcr.io/google.com/cloudsdktool/google-cloud-cli:stable
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8080
+      - --add-cloudsql-instances=${_INSTANCE_CONNECTION_NAME}
+      - --set-secrets=DATABASE_URL=${_DATABASE_URL_SECRET}:latest,SECRET_KEY=${_SECRET_KEY_SECRET}:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
