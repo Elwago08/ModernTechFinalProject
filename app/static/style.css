@@ -109,6 +109,20 @@ button {
   font-weight: 600;
 }
 
+.rating-details {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) 2fr;
+  gap: 0.75rem 1rem;
+}
+
+.rating-details dd {
+  margin: 0;
+}
+
+.rating-note {
+  white-space: pre-wrap;
+}
+
 .rating-field {
   display: grid;
   grid-template-columns: minmax(8rem, 1fr) minmax(5rem, 8rem);

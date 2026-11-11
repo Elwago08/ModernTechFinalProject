@@ -159,7 +159,7 @@ class AppTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertIn(b"Not rated", response.data)
-        self.assertIn(b"Edit rating", response.data)
+        self.assertIn(b"View rating", response.data)
 
     def test_adding_game_with_partial_scores_is_rejected(self):
         response = self.client.post(
@@ -212,11 +212,51 @@ class AppTests(unittest.TestCase):
                 )
             )
             db.session.commit()
+            entry_id = entry.id
 
         response = self.client.get("/")
 
         self.assertIn(b"Overall: 8.4/10", response.data)
-        self.assertIn(b"Edit rating", response.data)
+        self.assertIn(b"View rating", response.data)
+        self.assertIn(f"/library/{entry_id}/rating".encode(), response.data)
+
+    def test_rating_detail_shows_scores_notes_and_edit_link(self):
+        self.client.post(
+            "/library/add",
+            data={
+                "title": "Detailed Game",
+                "Gameplay": "8",
+                "Story": "9",
+                "Graphics": "7",
+                "Music": "10",
+                "Difficulty": "7",
+                "Gameplay_notes": "Responsive combat.",
+                "overall_notes": "Worth replaying.",
+            },
+        )
+        with self.app.app_context():
+            entry_id = LibraryEntry.query.one().id
+
+        response = self.client.get(f"/library/{entry_id}/rating")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Detailed Game", response.data)
+        self.assertIn(b"Overall: 8.2/10", response.data)
+        self.assertIn(b"Gameplay", response.data)
+        self.assertIn(b"8/10", response.data)
+        self.assertIn(b"Responsive combat.", response.data)
+        self.assertIn(b"Worth replaying.", response.data)
+        self.assertIn(f"/library/{entry_id}/rate".encode(), response.data)
+
+    def test_rating_detail_for_unrated_game_redirects_to_rating_form(self):
+        self.client.post("/library/add", data={"title": "Unrated Game"})
+        with self.app.app_context():
+            entry_id = LibraryEntry.query.one().id
+
+        response = self.client.get(f"/library/{entry_id}/rating")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], f"/library/{entry_id}/rate")
 
     def test_rating_form_shows_all_categories(self):
         self.client.post("/library/add", data={"title": "Example Game"})

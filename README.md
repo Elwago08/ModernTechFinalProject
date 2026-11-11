@@ -28,9 +28,10 @@ game** to open the game form. You can optionally rate the game there by scoring
 all five categories from 1 to 10, or leave all category scores blank and rate it
 later using **Rate game** beside the library entry. Optional notes are
 available for each category and for the overall rating, both when adding a game
-and when editing its rating. The average overall rating is shown in the library.
-Removing a game removes its library entry and associated rating, but keeps the
-game record. The SQLite database is created at `instance/project.db`. The
+and when editing its rating. Choose **View rating** to see a game's scores and
+notes without opening the editing form. The average overall rating is shown in
+the library. Removing a game removes its library entry and associated rating,
+but keeps the game record. The SQLite database is created at `instance/project.db`. The
 `init-db` command creates a `demo` user with a generated unusable password hash
 for development and upgrades the existing category-rating table when needed;
 it does not erase existing ratings or notes. Authentication is not implemented

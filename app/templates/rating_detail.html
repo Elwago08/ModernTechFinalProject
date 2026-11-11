@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ entry.game.title }} Rating - Game Ratings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Main navigation">
+        <a href="{{ url_for('index') }}">Back to library</a>
+      </nav>
+      <h1>{{ entry.game.title }}</h1>
+      {% if entry.rating.overall_score is not none %}
+        <p class="overall-rating">Overall: {{ "%.1f"|format(entry.rating.overall_score) }}/10</p>
+      {% else %}
+        <p class="status">No overall score yet</p>
+      {% endif %}
+
+      <section aria-labelledby="category-ratings-heading">
+        <h2 id="category-ratings-heading">Category ratings</h2>
+        <dl class="rating-details">
+          {% for category in categories %}
+            {% set criterion = criteria.get(category) %}
+            <dt>{{ category }}</dt>
+            <dd>
+              {% if criterion and criterion.score is not none %}
+                <span>{{ criterion.score }}/10</span>
+              {% else %}
+                <span class="status">Not scored</span>
+              {% endif %}
+              {% if criterion and criterion.notes %}
+                <p class="rating-note">{{ criterion.notes }}</p>
+              {% endif %}
+            </dd>
+          {% endfor %}
+        </dl>
+      </section>
+
+      {% if entry.rating.notes %}
+        <section aria-labelledby="overall-notes-heading">
+          <h2 id="overall-notes-heading">Overall notes</h2>
+          <p class="rating-note">{{ entry.rating.notes }}</p>
+        </section>
+      {% endif %}
+
+      <p>
+        <a class="primary-link" href="{{ url_for('rate_game_form', entry_id=entry.id) }}">
+          Edit rating
+        </a>
+      </p>
+    </main>
+  </body>
+</html>

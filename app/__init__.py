@@ -111,6 +111,32 @@ def create_app(test_config=None):
     def library():
         return redirect(url_for("index"))
 
+    @app.get("/library/<int:entry_id>/rating")
+    def view_game_rating(entry_id):
+        from app.models import LibraryEntry, RATING_CATEGORIES, User
+
+        demo_user = User.query.filter_by(username="demo").first()
+        if demo_user is None:
+            return "Database not initialized. Run `flask --app run.py init-db`.", 503
+
+        entry = LibraryEntry.query.filter_by(
+            id=entry_id, user_id=demo_user.id
+        ).first()
+        if entry is None:
+            flash("That game is not in your library.", "error")
+            return redirect(url_for("index"))
+        if entry.rating is None:
+            flash("This game has no rating to view yet.", "info")
+            return redirect(url_for("rate_game_form", entry_id=entry.id))
+
+        criteria = {criterion.name: criterion for criterion in entry.rating.criteria}
+        return render_template(
+            "rating_detail.html",
+            entry=entry,
+            categories=RATING_CATEGORIES,
+            criteria=criteria,
+        )
+
     @app.get("/library/add")
     def add_game_form():
         from app.models import RATING_CATEGORIES
