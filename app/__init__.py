@@ -94,18 +94,28 @@ def create_app(test_config=None):
 
     @app.get("/")
     def index():
-        from app.models import LibraryEntry, User
+        from app.models import Game, LibraryEntry, User
 
         demo_user = User.query.filter_by(username="demo").first()
         if demo_user is None:
             return "Database not initialized. Run `flask --app run.py init-db`.", 503
 
-        library_entries = (
-            LibraryEntry.query.filter_by(user_id=demo_user.id)
-            .order_by(LibraryEntry.added_at.desc())
-            .all()
+        search_term = request.args.get("q", "").strip()
+        library_query = LibraryEntry.query.join(Game).filter(
+            LibraryEntry.user_id == demo_user.id
         )
-        return render_template("index.html", library_entries=library_entries)
+        if search_term:
+            library_query = library_query.filter(
+                func.lower(Game.title).contains(
+                    search_term.lower(), autoescape=True
+                )
+            )
+        library_entries = library_query.order_by(LibraryEntry.added_at.desc()).all()
+        return render_template(
+            "index.html",
+            library_entries=library_entries,
+            search_term=search_term,
+        )
 
     @app.get("/library")
     def library():

@@ -44,6 +44,38 @@ class AppTests(unittest.TestCase):
         self.assertIn(b"<strong>Example Game</strong>", response.data)
         self.assertNotIn(b'name="title"', response.data)
 
+    def test_library_search_matches_game_name_case_insensitively(self):
+        self.client.post("/library/add", data={"title": "The Example Game"})
+        self.client.post("/library/add", data={"title": "Another Title"})
+
+        response = self.client.get("/?q=eXaMpLe")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"<strong>The Example Game</strong>", response.data)
+        self.assertNotIn(b"<strong>Another Title</strong>", response.data)
+        self.assertIn(b'value="eXaMpLe"', response.data)
+        self.assertIn(b"Clear", response.data)
+
+    def test_library_search_shows_empty_result_message(self):
+        self.client.post("/library/add", data={"title": "Example Game"})
+
+        response = self.client.get("/?q=Missing")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"No games found matching", response.data)
+        self.assertIn(b"Missing", response.data)
+        self.assertNotIn(b"<strong>Example Game</strong>", response.data)
+
+    def test_blank_library_search_shows_all_games(self):
+        self.client.post("/library/add", data={"title": "Example Game"})
+        self.client.post("/library/add", data={"title": "Another Title"})
+
+        response = self.client.get("/?q=%20%20")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"<strong>Example Game</strong>", response.data)
+        self.assertIn(b"<strong>Another Title</strong>", response.data)
+
     def test_add_game_page_displays_game_form(self):
         response = self.client.get("/library/add")
 
