@@ -12,7 +12,7 @@
         <a href="{{ url_for('index') }}">Back to library</a>
       </nav>
       <h1>Rate {{ entry.game.title }}</h1>
-      <p>Give each category a score from 1 to 10. The overall rating is their average.</p>
+      <p>Scores and notes are optional. Score all five categories or leave them blank. The overall rating is their average.</p>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -36,10 +36,17 @@
               max="10"
               step="1"
               value="{{ scores.get(category, '') }}"
-              required
             >
           </div>
+          <label for="notes-{{ loop.index }}">{{ category }} notes (optional)</label>
+          <textarea
+            id="notes-{{ loop.index }}"
+            name="{{ category }}_notes"
+            rows="3"
+          >{{ category_notes.get(category, '') }}</textarea>
         {% endfor %}
+        <label for="overall-notes">Overall notes (optional)</label>
+        <textarea id="overall-notes" name="overall_notes" rows="4">{{ overall_notes }}</textarea>
         <button type="submit">Save rating</button>
       </form>
     </main>

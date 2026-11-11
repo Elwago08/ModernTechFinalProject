@@ -52,6 +52,8 @@ class AppTests(unittest.TestCase):
         self.assertIn(b"Back to library", response.data)
         for category in ("Gameplay", "Story", "Graphics", "Music", "Difficulty"):
             self.assertIn(category.encode(), response.data)
+            self.assertIn(f'name="{category}_notes"'.encode(), response.data)
+        self.assertIn(b'name="overall_notes"', response.data)
 
     def test_adding_game_with_scores_saves_rating_and_average(self):
         response = self.client.post(
@@ -68,7 +70,9 @@ class AppTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         homepage = self.client.get(response.headers["Location"])
-        self.assertIn(b"Added Rated Game and saved its ratings.", homepage.data)
+        self.assertIn(
+            b"Added Rated Game and saved its ratings and notes.", homepage.data
+        )
         self.assertIn(b"Overall: 8.2/10", homepage.data)
         with self.app.app_context():
             self.assertEqual(LibraryEntry.query.count(), 1)
@@ -94,6 +98,68 @@ class AppTests(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(LibraryEntry.query.count(), 1)
             self.assertEqual(Rating.query.count(), 0)
+
+    def test_adding_game_saves_optional_category_and_overall_notes(self):
+        response = self.client.post(
+            "/library/add",
+            data={
+                "title": "Notes Game",
+                "Gameplay": "8",
+                "Story": "9",
+                "Graphics": "7",
+                "Music": "10",
+                "Difficulty": "7",
+                "Gameplay_notes": "Combat feels responsive.",
+                "Music_notes": "The soundtrack is memorable.",
+                "overall_notes": "I would replay this.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        with self.app.app_context():
+            rating = Rating.query.one()
+            self.assertEqual(rating.notes, "I would replay this.")
+            self.assertEqual(
+                {criterion.name: criterion.notes for criterion in rating.criteria},
+                {
+                    "Gameplay": "Combat feels responsive.",
+                    "Story": None,
+                    "Graphics": None,
+                    "Music": "The soundtrack is memorable.",
+                    "Difficulty": None,
+                },
+            )
+
+    def test_adding_game_can_save_notes_without_scores(self):
+        response = self.client.post(
+            "/library/add",
+            data={
+                "title": "Notes Only Game",
+                "Gameplay_notes": "A note before scoring.",
+                "overall_notes": "Try this again later.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        with self.app.app_context():
+            rating = Rating.query.one()
+            self.assertIsNone(rating.overall_score)
+            self.assertEqual(rating.notes, "Try this again later.")
+            self.assertEqual(
+                {criterion.name: criterion.notes for criterion in rating.criteria},
+                {"Gameplay": "A note before scoring."},
+            )
+
+    def test_library_displays_notes_only_rating_as_unrated(self):
+        self.client.post(
+            "/library/add",
+            data={"title": "Notes Only Game", "overall_notes": "Revisit later."},
+        )
+
+        response = self.client.get("/")
+
+        self.assertIn(b"Not rated", response.data)
+        self.assertIn(b"Edit rating", response.data)
 
     def test_adding_game_with_partial_scores_is_rejected(self):
         response = self.client.post(
@@ -162,6 +228,8 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         for category in ("Gameplay", "Story", "Graphics", "Music", "Difficulty"):
             self.assertIn(category.encode(), response.data)
+            self.assertIn(f'name="{category}_notes"'.encode(), response.data)
+        self.assertIn(b'name="overall_notes"', response.data)
 
     def test_saving_rating_persists_category_scores_and_average(self):
         self.client.post("/library/add", data={"title": "Example Game"})
@@ -219,6 +287,75 @@ class AppTests(unittest.TestCase):
             self.assertEqual(Rating.query.count(), 1)
             self.assertEqual(RatingCriterion.query.count(), 5)
             self.assertEqual(Rating.query.one().overall_score, 10.0)
+
+    def test_saving_rating_updates_and_displays_notes(self):
+        self.client.post("/library/add", data={"title": "Example Game"})
+        with self.app.app_context():
+            entry_id = LibraryEntry.query.one().id
+        scores = {
+            "Gameplay": "8",
+            "Story": "8",
+            "Graphics": "8",
+            "Music": "8",
+            "Difficulty": "8",
+        }
+
+        response = self.client.post(
+            f"/library/{entry_id}/rate",
+            data={
+                **scores,
+                "Gameplay_notes": "Strong combat.",
+                "overall_notes": "A solid experience.",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+
+        edit_page = self.client.get(f"/library/{entry_id}/rate")
+
+        self.assertIn(b"Strong combat.", edit_page.data)
+        self.assertIn(b"A solid experience.", edit_page.data)
+        with self.app.app_context():
+            rating = Rating.query.one()
+            self.assertEqual(rating.notes, "A solid experience.")
+            self.assertEqual(
+                RatingCriterion.query.filter_by(name="Gameplay").one().notes,
+                "Strong combat.",
+            )
+
+    def test_clearing_all_rating_scores_and_notes_removes_rating(self):
+        self.client.post(
+            "/library/add",
+            data={
+                "title": "Example Game",
+                "Gameplay": "8",
+                "Story": "8",
+                "Graphics": "8",
+                "Music": "8",
+                "Difficulty": "8",
+                "overall_notes": "Good game.",
+            },
+        )
+        with self.app.app_context():
+            entry_id = LibraryEntry.query.one().id
+
+        response = self.client.post(
+            f"/library/{entry_id}/rate",
+            data={
+                "Gameplay": "",
+                "Story": "",
+                "Graphics": "",
+                "Music": "",
+                "Difficulty": "",
+                "overall_notes": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        with self.app.app_context():
+            self.assertEqual(Rating.query.count(), 0)
+            self.assertEqual(RatingCriterion.query.count(), 0)
+        homepage = self.client.get(response.headers["Location"])
+        self.assertIn(b"Not rated", homepage.data)
 
     def test_invalid_category_score_is_rejected(self):
         self.client.post("/library/add", data={"title": "Example Game"})
@@ -337,6 +474,61 @@ class AppTests(unittest.TestCase):
                 {"game", "library_entry", "rating", "rating_criterion", "user"},
             )
             self.assertIsNotNone(User.query.filter_by(username="demo").first())
+
+    def test_init_db_upgrades_existing_category_notes_schema(self):
+        self.client.post("/library/add", data={"title": "Existing Game"})
+        with self.app.app_context():
+            entry = LibraryEntry.query.one()
+            db.session.add(
+                Rating(
+                    library_entry=entry,
+                    overall_score=8.0,
+                    criteria=[RatingCriterion(name="Gameplay", score=8)],
+                )
+            )
+            db.session.commit()
+            db.session.remove()
+
+            with db.engine.begin() as connection:
+                connection.exec_driver_sql(
+                    """
+                    CREATE TABLE rating_criterion_legacy (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        rating_id INTEGER NOT NULL,
+                        name VARCHAR(80) NOT NULL,
+                        score INTEGER NOT NULL,
+                        CONSTRAINT uq_rating_criterion_name
+                            UNIQUE (rating_id, name),
+                        CONSTRAINT ck_rating_criterion_score
+                            CHECK (score BETWEEN 1 AND 10),
+                        FOREIGN KEY(rating_id) REFERENCES rating (id)
+                    )
+                    """
+                )
+                connection.exec_driver_sql(
+                    "INSERT INTO rating_criterion_legacy "
+                    "(id, rating_id, name, score) "
+                    "SELECT id, rating_id, name, score FROM rating_criterion"
+                )
+                connection.exec_driver_sql("DROP TABLE rating_criterion")
+                connection.exec_driver_sql(
+                    "ALTER TABLE rating_criterion_legacy "
+                    "RENAME TO rating_criterion"
+                )
+
+        result = self.app.test_cli_runner().invoke(args=["init-db"])
+
+        self.assertEqual(result.exit_code, 0, f"{result.output}\n{result.exception!r}")
+        with self.app.app_context():
+            columns = {
+                column["name"]: column
+                for column in db.inspect(db.engine).get_columns("rating_criterion")
+            }
+            self.assertTrue(columns["score"]["nullable"])
+            self.assertTrue(columns["notes"]["nullable"])
+            criterion = RatingCriterion.query.one()
+            self.assertEqual(criterion.name, "Gameplay")
+            self.assertEqual(criterion.score, 8)
 
 
 if __name__ == "__main__":

@@ -80,6 +80,7 @@ class RatingCriterion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     rating_id = db.Column(db.Integer, db.ForeignKey("rating.id"), nullable=False)
     name = db.Column(db.String(80), nullable=False)
-    score = db.Column(db.Integer, nullable=False)
+    score = db.Column(db.Integer)
+    notes = db.Column(db.Text)
 
     rating = db.relationship("Rating", back_populates="criteria")

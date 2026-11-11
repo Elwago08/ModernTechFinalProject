@@ -26,12 +26,15 @@ python run.py
 Open <http://127.0.0.1:5000> to view the demo user's library. Choose **Add a
 game** to open the game form. You can optionally rate the game there by scoring
 all five categories from 1 to 10, or leave all category scores blank and rate it
-later using **Rate game** beside the library entry. The average overall rating
-is shown in the library. Removing a game removes
-its library entry and associated rating, but keeps the game record. The SQLite
-database is created at `instance/project.db`. The `init-db` command
-creates a `demo` user with a generated unusable password hash for development;
-authentication is not implemented yet. To run the tests:
+later using **Rate game** beside the library entry. Optional notes are
+available for each category and for the overall rating, both when adding a game
+and when editing its rating. The average overall rating is shown in the library.
+Removing a game removes its library entry and associated rating, but keeps the
+game record. The SQLite database is created at `instance/project.db`. The
+`init-db` command creates a `demo` user with a generated unusable password hash
+for development and upgrades the existing category-rating table when needed;
+it does not erase existing ratings or notes. Authentication is not implemented
+yet. To run the tests:
 
 ```powershell
 python -m unittest discover -s tests

@@ -30,7 +30,7 @@
               <li>
                 <div class="game-details">
                   <strong>{{ entry.game.title }}</strong>
-                  {% if entry.rating %}
+                  {% if entry.rating and entry.rating.overall_score is not none %}
                     <span class="overall-rating">Overall: {{ "%.1f"|format(entry.rating.overall_score) }}/10</span>
                   {% else %}
                     <span class="status">Not rated</span>

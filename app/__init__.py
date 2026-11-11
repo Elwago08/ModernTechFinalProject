@@ -2,11 +2,60 @@ import os
 
 from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func
+from sqlalchemy import func, inspect
 from werkzeug.security import generate_password_hash
 from secrets import token_urlsafe
 
 db = SQLAlchemy()
+
+
+def _upgrade_rating_criterion_notes():
+    if db.engine.dialect.name != "sqlite":
+        return
+
+    with db.engine.connect() as connection:
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        connection.commit()
+        try:
+            columns = {
+                column["name"]: column
+                for column in inspect(connection).get_columns("rating_criterion")
+            }
+            connection.commit()
+            if "notes" in columns and columns["score"]["nullable"]:
+                return
+
+            notes_expression = "notes" if "notes" in columns else "NULL"
+            with connection.begin():
+                connection.exec_driver_sql(
+                    """
+                    CREATE TABLE rating_criterion_new (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        rating_id INTEGER NOT NULL,
+                        name VARCHAR(80) NOT NULL,
+                        score INTEGER,
+                        notes TEXT,
+                        CONSTRAINT uq_rating_criterion_name
+                            UNIQUE (rating_id, name),
+                        CONSTRAINT ck_rating_criterion_score
+                            CHECK (score BETWEEN 1 AND 10),
+                        FOREIGN KEY(rating_id) REFERENCES rating (id)
+                    )
+                    """
+                )
+                connection.exec_driver_sql(
+                    "INSERT INTO rating_criterion_new "
+                    "(id, rating_id, name, score, notes) "
+                    "SELECT id, rating_id, name, score, "
+                    f"{notes_expression} FROM rating_criterion"
+                )
+                connection.exec_driver_sql("DROP TABLE rating_criterion")
+                connection.exec_driver_sql(
+                    "ALTER TABLE rating_criterion_new RENAME TO rating_criterion"
+                )
+        finally:
+            connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+            connection.commit()
 
 
 def create_app(test_config=None):
@@ -28,6 +77,7 @@ def create_app(test_config=None):
     @app.cli.command("init-db")
     def init_db():
         db.create_all()
+        _upgrade_rating_criterion_notes()
         from app.models import User
 
         demo_user = User.query.filter_by(username="demo").first()
@@ -90,6 +140,11 @@ def create_app(test_config=None):
             category: request.form.get(category, "").strip()
             for category in RATING_CATEGORIES
         }
+        category_notes = {
+            category: request.form.get(f"{category}_notes", "").strip()
+            for category in RATING_CATEGORIES
+        }
+        overall_notes = request.form.get("overall_notes", "").strip()
         scores = {}
         if any(category_values.values()):
             if not all(category_values.values()):
@@ -132,17 +187,27 @@ def create_app(test_config=None):
 
         entry = LibraryEntry(user=demo_user, game=game)
         db.session.add(entry)
-        if scores:
+        if scores or overall_notes or any(category_notes.values()):
             entry.rating = Rating(
-                overall_score=round(sum(scores.values()) / len(RATING_CATEGORIES), 1),
+                overall_score=(
+                    round(sum(scores.values()) / len(RATING_CATEGORIES), 1)
+                    if scores
+                    else None
+                ),
+                notes=overall_notes or None,
                 criteria=[
-                    RatingCriterion(name=category, score=score)
-                    for category, score in scores.items()
+                    RatingCriterion(
+                        name=category,
+                        score=scores.get(category),
+                        notes=category_notes[category] or None,
+                    )
+                    for category in RATING_CATEGORIES
+                    if category in scores or category_notes[category]
                 ],
             )
         db.session.commit()
-        if scores:
-            flash(f"Added {game.title} and saved its ratings.", "success")
+        if scores or overall_notes or any(category_notes.values()):
+            flash(f"Added {game.title} and saved its ratings and notes.", "success")
         else:
             flash(f"Added {game.title} to your library.", "success")
         return redirect(url_for("index"))
@@ -167,11 +232,18 @@ def create_app(test_config=None):
             if entry.rating
             else {}
         )
+        category_notes = (
+            {criterion.name: criterion.notes or "" for criterion in entry.rating.criteria}
+            if entry.rating
+            else {}
+        )
         return render_template(
             "rate_game.html",
             entry=entry,
             categories=RATING_CATEGORIES,
             scores=scores,
+            category_notes=category_notes,
+            overall_notes=entry.rating.notes if entry.rating else "",
         )
 
     @app.post("/library/<int:entry_id>/rate")
@@ -189,13 +261,34 @@ def create_app(test_config=None):
             flash("That game is not in your library.", "error")
             return redirect(url_for("index"))
 
+        score_values = {
+            category: request.form.get(category, "").strip()
+            for category in RATING_CATEGORIES
+        }
+        category_notes = {
+            category: request.form.get(f"{category}_notes", "").strip()
+            for category in RATING_CATEGORIES
+        }
+        overall_notes = request.form.get("overall_notes", "").strip()
         scores = {}
+        if any(score_values.values()) and not all(score_values.values()):
+            flash(
+                "Either leave all rating scores blank or score all five categories.",
+                "error",
+            )
+            return redirect(url_for("rate_game_form", entry_id=entry.id))
+
         for category in RATING_CATEGORIES:
-            value = request.form.get(category, "")
+            value = score_values[category]
+            if not value:
+                continue
             try:
                 score = int(value)
             except ValueError:
-                flash("Enter a whole-number score from 1 to 10 for each category.", "error")
+                flash(
+                    "Enter a whole-number score from 1 to 10 for each category.",
+                    "error",
+                )
                 return redirect(url_for("rate_game_form", entry_id=entry.id))
             if not 1 <= score <= 10:
                 flash("Scores must be from 1 to 10.", "error")
@@ -203,25 +296,37 @@ def create_app(test_config=None):
             scores[category] = score
 
         rating = entry.rating
-        if rating is None:
+        if rating is None and (scores or overall_notes or any(category_notes.values())):
             rating = Rating(library_entry=entry)
             db.session.add(rating)
 
-        rating.overall_score = round(sum(scores.values()) / len(RATING_CATEGORIES), 1)
-        criteria_by_name = {criterion.name: criterion for criterion in rating.criteria}
-        for category, score in scores.items():
-            criterion = criteria_by_name.get(category)
-            if criterion is None:
-                rating.criteria.append(RatingCriterion(name=category, score=score))
-            else:
-                criterion.score = score
+        if rating is not None:
+            rating.overall_score = (
+                round(sum(scores.values()) / len(RATING_CATEGORIES), 1) if scores else None
+            )
+            rating.notes = overall_notes or None
+            criteria_by_name = {
+                criterion.name: criterion for criterion in rating.criteria
+            }
+            for category in RATING_CATEGORIES:
+                score = scores.get(category)
+                notes = category_notes[category] or None
+                criterion = criteria_by_name.get(category)
+                if criterion is None and (score is not None or notes):
+                    rating.criteria.append(
+                        RatingCriterion(name=category, score=score, notes=notes)
+                    )
+                elif criterion is not None and (score is not None or notes):
+                    criterion.score = score
+                    criterion.notes = notes
+                elif criterion is not None:
+                    rating.criteria.remove(criterion)
 
-        for criterion in list(rating.criteria):
-            if criterion.name not in scores:
-                rating.criteria.remove(criterion)
+            if not scores and not overall_notes and not any(category_notes.values()):
+                db.session.delete(rating)
 
         db.session.commit()
-        flash(f"Saved ratings for {entry.game.title}.", "success")
+        flash(f"Saved ratings and notes for {entry.game.title}.", "success")
         return redirect(url_for("index"))
 
     @app.post("/library/<int:entry_id>/remove")
