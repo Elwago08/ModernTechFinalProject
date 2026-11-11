@@ -63,11 +63,20 @@ def create_app(test_config=None):
 
     @app.get("/library/add")
     def add_game_form():
-        return render_template("add_game.html")
+        from app.models import RATING_CATEGORIES
+
+        return render_template("add_game.html", categories=RATING_CATEGORIES)
 
     @app.post("/library/add")
     def add_game():
-        from app.models import Game, LibraryEntry, User
+        from app.models import (
+            Game,
+            LibraryEntry,
+            Rating,
+            RatingCriterion,
+            RATING_CATEGORIES,
+            User,
+        )
 
         title = request.form.get("title", "").strip()
         if not title:
@@ -76,6 +85,33 @@ def create_app(test_config=None):
         if len(title) > 200:
             flash("Game names must be 200 characters or fewer.", "error")
             return redirect(url_for("add_game_form"))
+
+        category_values = {
+            category: request.form.get(category, "").strip()
+            for category in RATING_CATEGORIES
+        }
+        scores = {}
+        if any(category_values.values()):
+            if not all(category_values.values()):
+                flash(
+                    "Either leave all rating categories blank or score all five.",
+                    "error",
+                )
+                return redirect(url_for("add_game_form"))
+
+            for category, value in category_values.items():
+                try:
+                    score = int(value)
+                except ValueError:
+                    flash(
+                        "Enter a whole-number score from 1 to 10 for each category.",
+                        "error",
+                    )
+                    return redirect(url_for("add_game_form"))
+                if not 1 <= score <= 10:
+                    flash("Scores must be from 1 to 10.", "error")
+                    return redirect(url_for("add_game_form"))
+                scores[category] = score
 
         demo_user = User.query.filter_by(username="demo").first()
         if demo_user is None:
@@ -94,9 +130,21 @@ def create_app(test_config=None):
             flash(f"{game.title} is already in your library.", "info")
             return redirect(url_for("index"))
 
-        db.session.add(LibraryEntry(user=demo_user, game=game))
+        entry = LibraryEntry(user=demo_user, game=game)
+        db.session.add(entry)
+        if scores:
+            entry.rating = Rating(
+                overall_score=round(sum(scores.values()) / len(RATING_CATEGORIES), 1),
+                criteria=[
+                    RatingCriterion(name=category, score=score)
+                    for category, score in scores.items()
+                ],
+            )
         db.session.commit()
-        flash(f"Added {game.title} to your library.", "success")
+        if scores:
+            flash(f"Added {game.title} and saved its ratings.", "success")
+        else:
+            flash(f"Added {game.title} to your library.", "success")
         return redirect(url_for("index"))
 
     @app.get("/library/<int:entry_id>/rate")

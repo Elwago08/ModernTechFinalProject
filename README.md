@@ -24,9 +24,10 @@ python run.py
 ```
 
 Open <http://127.0.0.1:5000> to view the demo user's library. Choose **Add a
-game** to open the game form; after submitting, the library is shown again.
-Choose **Rate game** beside a library entry to score each category from 1 to
-10. The average overall rating is shown in the library. Removing a game removes
+game** to open the game form. You can optionally rate the game there by scoring
+all five categories from 1 to 10, or leave all category scores blank and rate it
+later using **Rate game** beside the library entry. The average overall rating
+is shown in the library. Removing a game removes
 its library entry and associated rating, but keeps the game record. The SQLite
 database is created at `instance/project.db`. The `init-db` command
 creates a `demo` user with a generated unusable password hash for development;

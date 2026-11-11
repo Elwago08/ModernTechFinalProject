@@ -12,7 +12,7 @@
         <a href="{{ url_for('index') }}">Back to library</a>
       </nav>
       <h1>Add a Game</h1>
-      <p>Enter the game's name. More game details can be added later.</p>
+      <p>Enter the game's name. Ratings are optional; leave all categories blank or score all five.</p>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -28,8 +28,24 @@
         <label for="title">Game name</label>
         <div class="form-row">
           <input id="title" name="title" type="text" maxlength="200" required>
-          <button type="submit">Add to library</button>
         </div>
+        <fieldset>
+          <legend>Ratings (optional)</legend>
+          {% for category in categories %}
+            <div class="rating-field">
+              <label for="score-{{ loop.index }}">{{ category }}</label>
+              <input
+                id="score-{{ loop.index }}"
+                name="{{ category }}"
+                type="number"
+                min="1"
+                max="10"
+                step="1"
+              >
+            </div>
+          {% endfor %}
+        </fieldset>
+        <button type="submit">Add to library</button>
       </form>
     </main>
   </body>

@@ -113,6 +113,18 @@ button {
   box-sizing: border-box;
 }
 
+fieldset {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid #dce1ea;
+  border-radius: 0.4rem;
+}
+
+legend {
+  padding: 0 0.4rem;
+  font-weight: 600;
+}
+
 .remove-button {
   padding: 0.35rem 0.6rem;
   color: #8b2525;
