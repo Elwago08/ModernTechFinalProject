@@ -22,8 +22,10 @@ python -m flask --app run.py init-db
 python run.py
 ```
 
-Open <http://127.0.0.1:5000> to view the starter page. The SQLite database is
-created at `instance/project.db`. To run the foundation tests:
+Open <http://127.0.0.1:5000> to add games to the demo user's library. The
+SQLite database is created at `instance/project.db`. The `init-db` command
+creates a `demo` user with a generated unusable password hash for development;
+authentication is not implemented yet. To run the tests:
 
 ```powershell
 python -m unittest discover -s tests

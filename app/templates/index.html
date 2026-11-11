@@ -9,8 +9,41 @@
   <body>
     <main>
       <h1>Game Ratings</h1>
-      <p>Your game library and ratings start here.</p>
-      <p class="status">Project foundation is ready. More features are coming soon.</p>
+      <p>Your game library starts here.</p>
+
+      <section aria-labelledby="add-game-heading">
+        <h2 id="add-game-heading">Add a game</h2>
+        <form action="{{ url_for('add_game') }}" method="post">
+          <label for="title">Game name</label>
+          <div class="form-row">
+            <input id="title" name="title" type="text" maxlength="200" required>
+            <button type="submit">Add to library</button>
+          </div>
+        </form>
+      </section>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul class="messages" aria-live="polite">
+            {% for category, message in messages %}
+              <li class="{{ category }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+
+      <section aria-labelledby="library-heading">
+        <h2 id="library-heading">My library</h2>
+        {% if library_entries %}
+          <ul class="library-list">
+            {% for entry in library_entries %}
+              <li>{{ entry.game.title }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="status">No games yet. Add one above to get started.</p>
+        {% endif %}
+      </section>
     </main>
   </body>
 </html>
