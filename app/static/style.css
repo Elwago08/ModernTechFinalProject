@@ -48,8 +48,18 @@ section {
 
 .form-row {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
   margin-top: 0.5rem;
+}
+
+.search-form {
+  max-width: 32rem;
+  margin: 1rem 0;
+}
+
+.clear-search {
+  padding: 0.4rem;
 }
 
 input,
