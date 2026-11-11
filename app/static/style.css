@@ -53,11 +53,20 @@ section {
 }
 
 input,
+textarea,
 button {
   font: inherit;
   padding: 0.6rem 0.75rem;
   border: 1px solid #c8cfdb;
   border-radius: 0.4rem;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0.4rem 0 1rem;
+  resize: vertical;
 }
 
 input {
@@ -98,6 +107,20 @@ button {
 
 .overall-rating {
   font-weight: 600;
+}
+
+.rating-details {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) 2fr;
+  gap: 0.75rem 1rem;
+}
+
+.rating-details dd {
+  margin: 0;
+}
+
+.rating-note {
+  white-space: pre-wrap;
 }
 
 .rating-field {
