@@ -2,7 +2,7 @@ substitutions:
   _REGION: us-central1
   _REPOSITORY: game-ratings
   _SERVICE: game-ratings
-  _INSTANCE_CONNECTION_NAME: REPLACE_WITH_PROJECT_ID:REGION:INSTANCE_NAME
+  _INSTANCE_CONNECTION_NAME: modern-technologies-final:us-east1:modern-tech-final
   _DATABASE_URL_SECRET: game-ratings-database-url
   _SECRET_KEY_SECRET: game-ratings-secret-key
 
