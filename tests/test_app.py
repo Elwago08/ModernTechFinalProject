@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from app import create_app, db
-from app.models import Game, LibraryEntry, Rating, User
+from app.models import Game, LibraryEntry, Rating, RatingCriterion, User
 
 
 class AppTests(unittest.TestCase):
@@ -41,7 +41,7 @@ class AppTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"<span>Example Game</span>", response.data)
+        self.assertIn(b"<strong>Example Game</strong>", response.data)
         self.assertNotIn(b'name="title"', response.data)
 
     def test_add_game_page_displays_game_form(self):
@@ -50,6 +50,118 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'name="title"', response.data)
         self.assertIn(b"Back to library", response.data)
+
+    def test_library_displays_overall_rating(self):
+        self.client.post("/library/add", data={"title": "Example Game"})
+        with self.app.app_context():
+            entry = LibraryEntry.query.one()
+            db.session.add(
+                Rating(
+                    library_entry=entry,
+                    overall_score=8.4,
+                    criteria=[
+                        RatingCriterion(name="Gameplay", score=8),
+                        RatingCriterion(name="Story", score=9),
+                        RatingCriterion(name="Graphics", score=8),
+                        RatingCriterion(name="Music", score=9),
+                        RatingCriterion(name="Difficulty", score=8),
+                    ],
+                )
+            )
+            db.session.commit()
+
+        response = self.client.get("/")
+
+        self.assertIn(b"Overall: 8.4/10", response.data)
+        self.assertIn(b"Edit rating", response.data)
+
+    def test_rating_form_shows_all_categories(self):
+        self.client.post("/library/add", data={"title": "Example Game"})
+        with self.app.app_context():
+            entry_id = LibraryEntry.query.one().id
+
+        response = self.client.get(f"/library/{entry_id}/rate")
+
+        self.assertEqual(response.status_code, 200)
+        for category in ("Gameplay", "Story", "Graphics", "Music", "Difficulty"):
+            self.assertIn(category.encode(), response.data)
+
+    def test_saving_rating_persists_category_scores_and_average(self):
+        self.client.post("/library/add", data={"title": "Example Game"})
+        with self.app.app_context():
+            entry_id = LibraryEntry.query.one().id
+
+        response = self.client.post(
+            f"/library/{entry_id}/rate",
+            data={
+                "Gameplay": "8",
+                "Story": "9",
+                "Graphics": "7",
+                "Music": "10",
+                "Difficulty": "7",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        with self.app.app_context():
+            rating = Rating.query.one()
+            self.assertEqual(rating.overall_score, 8.2)
+            self.assertEqual(
+                {criterion.name: criterion.score for criterion in rating.criteria},
+                {
+                    "Gameplay": 8,
+                    "Story": 9,
+                    "Graphics": 7,
+                    "Music": 10,
+                    "Difficulty": 7,
+                },
+            )
+        homepage = self.client.get(response.headers["Location"])
+        self.assertIn(b"Overall: 8.2/10", homepage.data)
+
+    def test_saving_rating_updates_existing_scores(self):
+        self.client.post("/library/add", data={"title": "Example Game"})
+        with self.app.app_context():
+            entry_id = LibraryEntry.query.one().id
+
+        scores = {
+            "Gameplay": "8",
+            "Story": "8",
+            "Graphics": "8",
+            "Music": "8",
+            "Difficulty": "8",
+        }
+        self.client.post(f"/library/{entry_id}/rate", data=scores)
+        updated_response = self.client.post(
+            f"/library/{entry_id}/rate",
+            data={category: "10" for category in scores},
+        )
+
+        self.assertEqual(updated_response.status_code, 302)
+        with self.app.app_context():
+            self.assertEqual(Rating.query.count(), 1)
+            self.assertEqual(RatingCriterion.query.count(), 5)
+            self.assertEqual(Rating.query.one().overall_score, 10.0)
+
+    def test_invalid_category_score_is_rejected(self):
+        self.client.post("/library/add", data={"title": "Example Game"})
+        with self.app.app_context():
+            entry_id = LibraryEntry.query.one().id
+
+        response = self.client.post(
+            f"/library/{entry_id}/rate",
+            data={
+                "Gameplay": "11",
+                "Story": "9",
+                "Graphics": "7",
+                "Music": "10",
+                "Difficulty": "6",
+            },
+        )
+
+        self.assertEqual(response.headers["Location"], f"/library/{entry_id}/rate")
+        with self.app.app_context():
+            self.assertEqual(Rating.query.count(), 0)
 
     def test_library_url_redirects_to_homepage(self):
         response = self.client.get("/library")
@@ -66,7 +178,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.headers["Location"], "/")
         library_page = self.client.get(response.headers["Location"])
         self.assertIn(b"Added Example Game to your library.", library_page.data)
-        self.assertIn(b"<span>Example Game</span>", library_page.data)
+        self.assertIn(b"<strong>Example Game</strong>", library_page.data)
 
         with self.app.app_context():
             demo_user = User.query.filter_by(username="demo").one()

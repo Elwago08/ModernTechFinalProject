@@ -28,10 +28,22 @@
           <ul class="library-list">
             {% for entry in library_entries %}
               <li>
-                <span>{{ entry.game.title }}</span>
-                <form action="{{ url_for('remove_game', entry_id=entry.id) }}" method="post">
-                  <button class="remove-button" type="submit" aria-label="Remove {{ entry.game.title }} from library">Remove</button>
-                </form>
+                <div class="game-details">
+                  <strong>{{ entry.game.title }}</strong>
+                  {% if entry.rating %}
+                    <span class="overall-rating">Overall: {{ "%.1f"|format(entry.rating.overall_score) }}/10</span>
+                  {% else %}
+                    <span class="status">Not rated</span>
+                  {% endif %}
+                </div>
+                <div class="game-actions">
+                  <a href="{{ url_for('rate_game_form', entry_id=entry.id) }}">
+                    {% if entry.rating %}Edit rating{% else %}Rate game{% endif %}
+                  </a>
+                  <form action="{{ url_for('remove_game', entry_id=entry.id) }}" method="post">
+                    <button class="remove-button" type="submit" aria-label="Remove {{ entry.game.title }} from library">Remove</button>
+                  </form>
+                </div>
               </li>
             {% endfor %}
           </ul>

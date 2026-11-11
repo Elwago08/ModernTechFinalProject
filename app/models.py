@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 
 from app import db
 
+RATING_CATEGORIES = ("Gameplay", "Story", "Graphics", "Music", "Difficulty")
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -51,7 +53,7 @@ class Rating(db.Model):
     library_entry_id = db.Column(
         db.Integer, db.ForeignKey("library_entry.id"), unique=True, nullable=False
     )
-    overall_score = db.Column(db.Integer)
+    overall_score = db.Column(db.Float)
     notes = db.Column(db.Text)
 
     library_entry = db.relationship("LibraryEntry", back_populates="rating")

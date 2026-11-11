@@ -99,6 +99,83 @@ def create_app(test_config=None):
         flash(f"Added {game.title} to your library.", "success")
         return redirect(url_for("index"))
 
+    @app.get("/library/<int:entry_id>/rate")
+    def rate_game_form(entry_id):
+        from app.models import LibraryEntry, RATING_CATEGORIES, User
+
+        demo_user = User.query.filter_by(username="demo").first()
+        if demo_user is None:
+            return "Database not initialized. Run `flask --app run.py init-db`.", 503
+
+        entry = LibraryEntry.query.filter_by(
+            id=entry_id, user_id=demo_user.id
+        ).first()
+        if entry is None:
+            flash("That game is not in your library.", "error")
+            return redirect(url_for("index"))
+
+        scores = (
+            {criterion.name: criterion.score for criterion in entry.rating.criteria}
+            if entry.rating
+            else {}
+        )
+        return render_template(
+            "rate_game.html",
+            entry=entry,
+            categories=RATING_CATEGORIES,
+            scores=scores,
+        )
+
+    @app.post("/library/<int:entry_id>/rate")
+    def save_game_rating(entry_id):
+        from app.models import LibraryEntry, Rating, RatingCriterion, RATING_CATEGORIES, User
+
+        demo_user = User.query.filter_by(username="demo").first()
+        if demo_user is None:
+            return "Database not initialized. Run `flask --app run.py init-db`.", 503
+
+        entry = LibraryEntry.query.filter_by(
+            id=entry_id, user_id=demo_user.id
+        ).first()
+        if entry is None:
+            flash("That game is not in your library.", "error")
+            return redirect(url_for("index"))
+
+        scores = {}
+        for category in RATING_CATEGORIES:
+            value = request.form.get(category, "")
+            try:
+                score = int(value)
+            except ValueError:
+                flash("Enter a whole-number score from 1 to 10 for each category.", "error")
+                return redirect(url_for("rate_game_form", entry_id=entry.id))
+            if not 1 <= score <= 10:
+                flash("Scores must be from 1 to 10.", "error")
+                return redirect(url_for("rate_game_form", entry_id=entry.id))
+            scores[category] = score
+
+        rating = entry.rating
+        if rating is None:
+            rating = Rating(library_entry=entry)
+            db.session.add(rating)
+
+        rating.overall_score = round(sum(scores.values()) / len(RATING_CATEGORIES), 1)
+        criteria_by_name = {criterion.name: criterion for criterion in rating.criteria}
+        for category, score in scores.items():
+            criterion = criteria_by_name.get(category)
+            if criterion is None:
+                rating.criteria.append(RatingCriterion(name=category, score=score))
+            else:
+                criterion.score = score
+
+        for criterion in list(rating.criteria):
+            if criterion.name not in scores:
+                rating.criteria.remove(criterion)
+
+        db.session.commit()
+        flash(f"Saved ratings for {entry.game.title}.", "success")
+        return redirect(url_for("index"))
+
     @app.post("/library/<int:entry_id>/remove")
     def remove_game(entry_id):
         from app.models import LibraryEntry, User

@@ -85,6 +85,34 @@ button {
   margin: 0.5rem 0;
 }
 
+.game-details,
+.game-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.game-details {
+  flex-wrap: wrap;
+}
+
+.overall-rating {
+  font-weight: 600;
+}
+
+.rating-field {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(5rem, 8rem);
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.rating-field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .remove-button {
   padding: 0.35rem 0.6rem;
   color: #8b2525;
