@@ -30,8 +30,32 @@ class AppTests(unittest.TestCase):
     def test_homepage_loads(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Add to library", response.data)
+
+        self.assertIn(b"My Library", response.data)
+        self.assertIn(b"Add a game", response.data)
         self.assertIn(b"No games yet", response.data)
+
+    def test_homepage_displays_added_games(self):
+        self.client.post("/library/add", data={"title": "Example Game"})
+
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"<span>Example Game</span>", response.data)
+        self.assertNotIn(b'name="title"', response.data)
+
+    def test_add_game_page_displays_game_form(self):
+        response = self.client.get("/library/add")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'name="title"', response.data)
+        self.assertIn(b"Back to library", response.data)
+
+    def test_library_url_redirects_to_homepage(self):
+        response = self.client.get("/library")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/")
 
     def test_adding_game_saves_it_to_demo_users_library(self):
         response = self.client.post(
@@ -39,9 +63,10 @@ class AppTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        homepage = self.client.get(response.headers["Location"])
-        self.assertIn(b"Added Example Game to your library.", homepage.data)
-        self.assertIn(b"<span>Example Game</span>", homepage.data)
+        self.assertEqual(response.headers["Location"], "/")
+        library_page = self.client.get(response.headers["Location"])
+        self.assertIn(b"Added Example Game to your library.", library_page.data)
+        self.assertIn(b"<span>Example Game</span>", library_page.data)
 
         with self.app.app_context():
             demo_user = User.query.filter_by(username="demo").one()
@@ -65,8 +90,9 @@ class AppTests(unittest.TestCase):
     def test_empty_game_name_is_rejected(self):
         response = self.client.post("/library/add", data={"title": "  "})
 
-        homepage = self.client.get(response.headers["Location"])
-        self.assertIn(b"Enter a game name", homepage.data)
+        self.assertEqual(response.headers["Location"], "/library/add")
+        add_page = self.client.get(response.headers["Location"])
+        self.assertIn(b"Enter a game name", add_page.data)
         with self.app.app_context():
             self.assertEqual(Game.query.count(), 0)
             self.assertEqual(LibraryEntry.query.count(), 0)
@@ -74,8 +100,9 @@ class AppTests(unittest.TestCase):
     def test_game_name_over_200_characters_is_rejected(self):
         response = self.client.post("/library/add", data={"title": "G" * 201})
 
-        homepage = self.client.get(response.headers["Location"])
-        self.assertIn(b"200 characters or fewer", homepage.data)
+        self.assertEqual(response.headers["Location"], "/library/add")
+        add_page = self.client.get(response.headers["Location"])
+        self.assertIn(b"200 characters or fewer", add_page.data)
         with self.app.app_context():
             self.assertEqual(Game.query.count(), 0)
             self.assertEqual(LibraryEntry.query.count(), 0)

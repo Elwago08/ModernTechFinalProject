@@ -57,6 +57,14 @@ def create_app(test_config=None):
         )
         return render_template("index.html", library_entries=library_entries)
 
+    @app.get("/library")
+    def library():
+        return redirect(url_for("index"))
+
+    @app.get("/library/add")
+    def add_game_form():
+        return render_template("add_game.html")
+
     @app.post("/library/add")
     def add_game():
         from app.models import Game, LibraryEntry, User
@@ -64,10 +72,10 @@ def create_app(test_config=None):
         title = request.form.get("title", "").strip()
         if not title:
             flash("Enter a game name to add it to your library.", "error")
-            return redirect(url_for("index"))
+            return redirect(url_for("add_game_form"))
         if len(title) > 200:
             flash("Game names must be 200 characters or fewer.", "error")
-            return redirect(url_for("index"))
+            return redirect(url_for("add_game_form"))
 
         demo_user = User.query.filter_by(username="demo").first()
         if demo_user is None:

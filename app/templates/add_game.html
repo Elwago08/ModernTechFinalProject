@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Add a Game - Game Ratings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Main navigation">
+        <a href="{{ url_for('index') }}">Back to library</a>
+      </nav>
+      <h1>Add a Game</h1>
+      <p>Enter the game's name. More game details can be added later.</p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul class="messages" aria-live="polite">
+            {% for category, message in messages %}
+              <li class="{{ category }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+
+      <form action="{{ url_for('add_game') }}" method="post">
+        <label for="title">Game name</label>
+        <div class="form-row">
+          <input id="title" name="title" type="text" maxlength="200" required>
+          <button type="submit">Add to library</button>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>
