@@ -61,6 +61,44 @@ docker compose down
 Keep the same `SECRET_KEY` value when restarting the app. Do not use the
 development fallback secret for a deployed environment.
 
+## Deploy to Google Cloud Run
+
+The Cloud Run deployment uses Cloud SQL for PostgreSQL because container
+filesystems are not persistent. You need a Google Cloud project with billing,
+a PostgreSQL Cloud SQL instance and database, and a database user. Enable the
+Cloud Run, Cloud Build, Artifact Registry, Cloud SQL Admin, and Secret Manager
+APIs. Create an Artifact Registry Docker repository in the deployment region.
+
+Create two Secret Manager secrets:
+
+- `game-ratings-secret-key`: a long random secret key.
+- `game-ratings-database-url`: the SQLAlchemy URL for the Cloud SQL database,
+  using the instance's Cloud SQL connection name as the Unix socket path. For
+  example:
+  `postgresql+psycopg://APP_USER:URL_ENCODED_PASSWORD@/DATABASE?host=/cloudsql/PROJECT_ID:REGION:INSTANCE_NAME`
+
+Grant the Cloud Run runtime service account `roles/cloudsql.client` and
+`roles/secretmanager.secretAccessor` for both secrets. Grant the Cloud Build
+service account `roles/run.admin`, `roles/artifactregistry.writer`, and
+`roles/iam.serviceAccountUser` so it can build, push, and deploy the service and
+initialization job.
+
+Submit a build from PowerShell, replacing the project, region, repository, and
+Cloud SQL instance values:
+
+```powershell
+gcloud config set project PROJECT_ID
+gcloud builds submit --config cloudbuild.yaml --substitutions=_REGION=us-central1,_REPOSITORY=game-ratings,_SERVICE=game-ratings,_INSTANCE_CONNECTION_NAME=PROJECT_ID:us-central1:INSTANCE_NAME,_DATABASE_URL_SECRET=game-ratings-database-url,_SECRET_KEY_SECRET=game-ratings-secret-key
+```
+
+The build publishes the image, runs the database initialization job, then
+deploys the web service to Cloud Run. It creates a publicly reachable URL;
+authentication is not implemented, so use only demo data and do not store
+private information. This initializes a PostgreSQL database; it does not
+migrate data from a local SQLite database. Cloud Run schema changes after
+initial setup will require database migrations; `init-db` creates missing
+tables but does not alter existing PostgreSQL tables.
+
 The app factory and database extension live in `app/__init__.py`; starter data
 models are in `app/models.py`. `init-db` creates the tables and can be run again
 if needed. It does not erase existing data. The default secret key is for local

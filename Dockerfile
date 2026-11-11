@@ -16,6 +16,8 @@ COPY --chown=appuser:appuser run.py .
 
 USER appuser
 
-EXPOSE 5000
+ENV PORT=8080
 
-CMD ["sh", "-c", "python -m flask --app run.py init-db && exec waitress-serve --listen=0.0.0.0:5000 run:app"]
+EXPOSE 8080
+
+CMD ["sh", "-c", "exec waitress-serve --listen=0.0.0.0:${PORT:-8080} run:app"]
