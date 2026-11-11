@@ -25,6 +25,72 @@ h1 {
   margin-top: 0;
 }
 
+section {
+  margin-top: 2rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+input,
+button {
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #c8cfdb;
+  border-radius: 0.4rem;
+}
+
+input {
+  flex: 1;
+  min-width: 0;
+}
+
+button {
+  color: white;
+  background: #344b83;
+  border-color: #344b83;
+  cursor: pointer;
+}
+
+.library-list,
+.messages {
+  padding-left: 1.25rem;
+}
+
+.library-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0.5rem 0;
+}
+
+.remove-button {
+  padding: 0.35rem 0.6rem;
+  color: #8b2525;
+  background: white;
+  border-color: #d7aaaa;
+}
+
+.messages li {
+  margin: 0.4rem 0;
+}
+
+.success {
+  color: #17653a;
+}
+
+.error {
+  color: #a32323;
+}
+
+.info {
+  color: #344b83;
+}
+
 .status {
   color: #596579;
 }
