@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Add a Game - Game Ratings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Main navigation">
+        <a href="{{ url_for('index') }}">Back to library</a>
+      </nav>
+      <h1>Add a Game</h1>
+      <p>Enter the game's name. Ratings are optional; leave all categories blank or score all five.</p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul class="messages" aria-live="polite">
+            {% for category, message in messages %}
+              <li class="{{ category }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+
+      <form action="{{ url_for('add_game') }}" method="post">
+        <label for="title">Game name</label>
+        <div class="form-row">
+          <input id="title" name="title" type="text" maxlength="200" required>
+        </div>
+        <fieldset>
+          <legend>Ratings (optional)</legend>
+          {% for category in categories %}
+            <div class="rating-field">
+              <label for="score-{{ loop.index }}">{{ category }}</label>
+              <input
+                id="score-{{ loop.index }}"
+                name="{{ category }}"
+                type="number"
+                min="1"
+                max="10"
+                step="1"
+              >
+            </div>
+          {% endfor %}
+        </fieldset>
+        <button type="submit">Add to library</button>
+      </form>
+    </main>
+  </body>
+</html>

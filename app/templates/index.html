@@ -8,19 +8,9 @@
   </head>
   <body>
     <main>
-      <h1>Game Ratings</h1>
-      <p>Your game library starts here.</p>
-
-      <section aria-labelledby="add-game-heading">
-        <h2 id="add-game-heading">Add a game</h2>
-        <form action="{{ url_for('add_game') }}" method="post">
-          <label for="title">Game name</label>
-          <div class="form-row">
-            <input id="title" name="title" type="text" maxlength="200" required>
-            <button type="submit">Add to library</button>
-          </div>
-        </form>
-      </section>
+      <h1>My Library</h1>
+      <p>Keep track of your games and ratings.</p>
+      <p><a class="primary-link" href="{{ url_for('add_game_form') }}">Add a game</a></p>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -33,15 +23,27 @@
       {% endwith %}
 
       <section aria-labelledby="library-heading">
-        <h2 id="library-heading">My library</h2>
+        <h2 id="library-heading">Games</h2>
         {% if library_entries %}
           <ul class="library-list">
             {% for entry in library_entries %}
               <li>
-                <span>{{ entry.game.title }}</span>
-                <form action="{{ url_for('remove_game', entry_id=entry.id) }}" method="post">
-                  <button class="remove-button" type="submit" aria-label="Remove {{ entry.game.title }} from library">Remove</button>
-                </form>
+                <div class="game-details">
+                  <strong>{{ entry.game.title }}</strong>
+                  {% if entry.rating %}
+                    <span class="overall-rating">Overall: {{ "%.1f"|format(entry.rating.overall_score) }}/10</span>
+                  {% else %}
+                    <span class="status">Not rated</span>
+                  {% endif %}
+                </div>
+                <div class="game-actions">
+                  <a href="{{ url_for('rate_game_form', entry_id=entry.id) }}">
+                    {% if entry.rating %}Edit rating{% else %}Rate game{% endif %}
+                  </a>
+                  <form action="{{ url_for('remove_game', entry_id=entry.id) }}" method="post">
+                    <button class="remove-button" type="submit" aria-label="Remove {{ entry.game.title }} from library">Remove</button>
+                  </form>
+                </div>
               </li>
             {% endfor %}
           </ul>
