@@ -60,6 +60,21 @@ button {
   padding-left: 1.25rem;
 }
 
+.library-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0.5rem 0;
+}
+
+.remove-button {
+  padding: 0.35rem 0.6rem;
+  color: #8b2525;
+  background: white;
+  border-color: #d7aaaa;
+}
+
 .messages li {
   margin: 0.4rem 0;
 }

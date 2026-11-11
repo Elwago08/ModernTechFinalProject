@@ -37,7 +37,12 @@
         {% if library_entries %}
           <ul class="library-list">
             {% for entry in library_entries %}
-              <li>{{ entry.game.title }}</li>
+              <li>
+                <span>{{ entry.game.title }}</span>
+                <form action="{{ url_for('remove_game', entry_id=entry.id) }}" method="post">
+                  <button class="remove-button" type="submit" aria-label="Remove {{ entry.game.title }} from library">Remove</button>
+                </form>
+              </li>
             {% endfor %}
           </ul>
         {% else %}

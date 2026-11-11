@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from app import create_app, db
-from app.models import Game, LibraryEntry, User
+from app.models import Game, LibraryEntry, Rating, User
 
 
 class AppTests(unittest.TestCase):
@@ -41,7 +41,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         homepage = self.client.get(response.headers["Location"])
         self.assertIn(b"Added Example Game to your library.", homepage.data)
-        self.assertIn(b"<li>Example Game</li>", homepage.data)
+        self.assertIn(b"<span>Example Game</span>", homepage.data)
 
         with self.app.app_context():
             demo_user = User.query.filter_by(username="demo").one()
@@ -79,6 +79,37 @@ class AppTests(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(Game.query.count(), 0)
             self.assertEqual(LibraryEntry.query.count(), 0)
+
+    def test_removing_game_deletes_library_entry_but_keeps_game(self):
+        self.client.post("/library/add", data={"title": "Example Game"})
+        with self.app.app_context():
+            entry = LibraryEntry.query.one()
+            entry_id = entry.id
+            db.session.add(Rating(library_entry=entry, overall_score=8))
+            db.session.commit()
+
+        response = self.client.post(f"/library/{entry_id}/remove")
+
+        self.assertEqual(response.status_code, 302)
+        homepage = self.client.get(response.headers["Location"])
+        self.assertIn(b"Removed Example Game from your library.", homepage.data)
+        self.assertIn(b"No games yet", homepage.data)
+        with self.app.app_context():
+            self.assertEqual(LibraryEntry.query.count(), 0)
+            self.assertEqual(Rating.query.count(), 0)
+            self.assertEqual(Game.query.count(), 1)
+
+    def test_removing_unknown_entry_does_not_delete_games(self):
+        self.client.post("/library/add", data={"title": "Example Game"})
+
+        response = self.client.post("/library/999/remove")
+
+        homepage = self.client.get(response.headers["Location"])
+        self.assertIn(b"That game is not in your library.", homepage.data)
+        self.assertIn(b"Example Game", homepage.data)
+        with self.app.app_context():
+            self.assertEqual(LibraryEntry.query.count(), 1)
+            self.assertEqual(Game.query.count(), 1)
 
     def test_init_db_creates_foundation_tables(self):
         result = self.app.test_cli_runner().invoke(args=["init-db"])

@@ -91,4 +91,25 @@ def create_app(test_config=None):
         flash(f"Added {game.title} to your library.", "success")
         return redirect(url_for("index"))
 
+    @app.post("/library/<int:entry_id>/remove")
+    def remove_game(entry_id):
+        from app.models import LibraryEntry, User
+
+        demo_user = User.query.filter_by(username="demo").first()
+        if demo_user is None:
+            return "Database not initialized. Run `flask --app run.py init-db`.", 503
+
+        entry = LibraryEntry.query.filter_by(
+            id=entry_id, user_id=demo_user.id
+        ).first()
+        if entry is None:
+            flash("That game is not in your library.", "error")
+            return redirect(url_for("index"))
+
+        title = entry.game.title
+        db.session.delete(entry)
+        db.session.commit()
+        flash(f"Removed {title} from your library.", "success")
+        return redirect(url_for("index"))
+
     return app
